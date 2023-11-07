@@ -1,0 +1,363 @@
+---
+title: "Analiza danych dotyczących państw członkowskich Unii Europejskiej"
+author: "Dominika Stępniewska"
+format: 
+  html:
+    echo: false
+    warning: false
+    message: false
+    self-contained: true
+editor: visual
+lang: pl
+editor_options: 
+  chunk_output_type: console
+bibliography: references.bib
+---
+
+```{r}
+library(rvest)
+library(stringr)
+library(tibble)
+library(flextable)
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(rstatix)
+library(scales)
+library(plotly)
+library(htmltools)
+```
+
+```{r}
+url <- "https://www.destatis.de/Europa/EN/Country/EU-Member-States/_node.html"
+page <- read_html(url)
+
+panstwa <- page %>% 
+  html_nodes(".c-list__item--database a") %>% 
+  html_text() %>% 
+  str_extract("[:alpha:]+[:space:]?+[:alpha:]+") %>%
+  str_replace("[:space:]", "-")
+
+url2 <- "https://www.destatis.de/Europa/EN/Country/EU-Member-States/"
+page2 <- read_html(url2)
+
+adresy <- c()
+
+for (i in 1:length(panstwa)) {
+  adresy[i] <- str_c(url2, panstwa[i])
+}
+```
+
+```{r}
+stolica <- c()
+waluta <- c()
+powierzchnia <- c()
+populacja <- c()
+
+stopa_inflacji <- c()
+pkb <- c()
+stopa_bezrobocia <- c()
+wskaznik_zagrozenia_ubostwem <- c()
+
+wyksztalcenie_wyzsze_kobiety <- c()
+wyksztalcenie_wyzsze_mezczyzni <- c()
+wydatki_publiczne_na_edukacje <- c()
+uzytkownicy_internetu <- c()
+
+przewidywana_dlugosc_zycia_kobiet <- c()
+przewidywana_dlugosc_zycia_mezczyzn <- c()
+wskaznik_lat_w_zdrowiu_kobiet <- c()
+wskaznik_lat_w_zdrowiu_mezczyzn <- c()
+
+emisja_gazow_cieplarnianych <- c()
+odnawialne_zrodla_energii <- c()
+pasazerowie_transportu_lotniczego <- c()
+
+for (i in 1:length(adresy)) {
+  page3 <- read_html(adresy[i])
+  stolica[i] <- page3 %>% html_nodes("tr:nth-child(1) td:nth-child(4)") %>% html_text()
+  waluta[i] <-  page3 %>% html_nodes("tr:nth-child(2) td:nth-child(4)") %>% html_text()
+  powierzchnia[i] <-  page3 %>% html_nodes("tr:nth-child(3) td:nth-child(4)") %>% html_text() %>% parse_number
+  populacja[i] <-  page3 %>% html_nodes("tr:nth-child(12) td:nth-child(4)") %>% html_text() %>% parse_number
+  stopa_inflacji[i] <-  page3 %>% html_nodes("tr:nth-child(8) td:nth-child(4)") %>% html_text() %>% parse_number
+  pkb[i] <-  page3 %>% html_nodes("tr:nth-child(5) td:nth-child(4)") %>% html_text() %>% parse_number
+  stopa_bezrobocia[i] <-  page3 %>% html_nodes("tr:nth-child(20) td:nth-child(4)") %>% html_text() %>% parse_number
+  wskaznik_zagrozenia_ubostwem[i] <- page3 %>% html_nodes("tr:nth-child(36) td:nth-child(4)") %>% html_text() %>% parse_number
+  wyksztalcenie_wyzsze_kobiety[i] <-  page3 %>% html_nodes("tr:nth-child(25) td:nth-child(4)") %>% html_text() %>% parse_number
+  wyksztalcenie_wyzsze_mezczyzni[i] <- page3 %>% html_nodes("tr:nth-child(26) td:nth-child(4)") %>% html_text() %>% parse_number
+  wydatki_publiczne_na_edukacje[i] <- page3 %>% html_nodes("tr:nth-child(27) td:nth-child(4)") %>% html_text() %>% parse_number
+  uzytkownicy_internetu[i] <- page3 %>% html_nodes("tr:nth-child(66) td:nth-child(4)") %>% html_text() %>% parse_number
+  przewidywana_dlugosc_zycia_kobiet[i] <-  page3 %>% html_nodes("tr:nth-child(15) td:nth-child(4)") %>% html_text() %>% parse_number
+  przewidywana_dlugosc_zycia_mezczyzn[i] <-  page3 %>% html_nodes("tr:nth-child(16) td:nth-child(4)") %>% html_text() %>% parse_number
+  wskaznik_lat_w_zdrowiu_kobiet[i] <-  page3 %>% html_nodes("tr:nth-child(32) td:nth-child(4)") %>% html_text() %>% parse_number
+  wskaznik_lat_w_zdrowiu_mezczyzn[i] <-  page3 %>% html_nodes("tr:nth-child(33) td:nth-child(4)") %>% html_text() %>% parse_number
+  emisja_gazow_cieplarnianych[i] <-  page3 %>% html_nodes("tr:nth-child(59) td:nth-child(4)") %>% html_text() %>% parse_number
+  odnawialne_zrodla_energii[i] <-  page3 %>% html_nodes("tr:nth-child(62) td:nth-child(4)") %>% html_text() %>% parse_number
+  pasazerowie_transportu_lotniczego[i] <-  page3 %>% html_nodes("tr:nth-child(54) td:nth-child(4)") %>% html_text() %>% parse_number
+}
+```
+
+```{r}
+panstwo <- panstwa %>% str_replace("-", " ")
+populacja <- populacja*1000
+pasazerowie_transportu_lotniczego <- pasazerowie_transportu_lotniczego*1000000
+  
+dane <- tibble(panstwo, stolica, waluta, powierzchnia, populacja, stopa_inflacji, pkb, stopa_bezrobocia, wskaznik_zagrozenia_ubostwem, wyksztalcenie_wyzsze_kobiety, wyksztalcenie_wyzsze_mezczyzni, wydatki_publiczne_na_edukacje, uzytkownicy_internetu, przewidywana_dlugosc_zycia_kobiet, przewidywana_dlugosc_zycia_mezczyzn, wskaznik_lat_w_zdrowiu_kobiet, wskaznik_lat_w_zdrowiu_mezczyzn, emisja_gazow_cieplarnianych, odnawialne_zrodla_energii, pasazerowie_transportu_lotniczego)
+
+nazwy_kolumn <- c("państwo", "stolica", "waluta", "powierzchnia (km²)", "populacja", "stopa inflacji (%)", "PKB (miliardy euro)", "stopa bezrobocia (%)", "wskaźnik zagrożenia ubóstwem (%)", "kobiety z wyższym wykształceniem (%)", "mężczyźni z wyższym wykształceniem (%)", "wydatki publiczne na edukację (% PKB)", "użytkownicy internetu (%)", "przewidywana długość życia kobiet", "przewidywana długość życia mężczyzn", "przewidywane lata w zdrowiu kobiet", "przewidywane lata w zdrowiu mężczyzn", "emisja gazów cieplarnianych (tony CO₂ per capita)", "odnawialne źródła energii (% całkowitego zużycia energii)", "pasażerowie transportu lotniczego")
+
+colnames(dane) <- nazwy_kolumn
+
+dane2 <- dane
+```
+
+**Unia Europejska** (*ang. European Union*) powstała 1 listopada 1993 roku na mocy podpisanego 7 lutego 1992 roku traktatu z Maastricht, jako efekt wieloletniego procesu integracji politycznej, gospodarczej i społecznej.
+
+[![Budynek Berlaymont w Brukseli - siedziba Komisji Europejskiej](siedziba.png){fig-align="center"}](https://pl.wikipedia.org/wiki/Unia_Europejska)
+
+Poniższa tabela przedstawia zestawienie danych dotyczących państw Unii Europejskiej (obecnie jest ich 27, jednak uwzględniono również Wielką Brytanię, która była członkiem UE do 2020 roku).
+
+```{r}
+#| label: tbl-dane
+#| tbl-cap: Dane dotyczące państw UE
+
+dane2 %>% flextable() %>% theme_vanilla() %>% add_header_row(
+    colwidths = c(1, 4, 4, 4, 4, 3),
+    values = c("","Podstawowe informacje", "Ekonomia", "Edukacja", "Demografia", "Środowisko")) %>%
+  vline(j = c(1, 5, 9, 13, 17)) %>%
+  vline_left() %>%
+  vline %>%
+  bg(j="państwo", bg="lightskyblue3") %>%
+  color(color="darkslategrey", part="header")
+```
+
+# Podstawowe informacje
+
+```{r}
+najwieksze <- data.frame(dane %>% arrange(desc(`powierzchnia (km²)`)) %>% select(państwo, stolica, `powierzchnia (km²)`) %>% head(5))
+colnames(najwieksze)[3]="powierzchnia (km²)"
+```
+
+```{r}
+#| label: tbl-najwieksze
+#| tbl-cap: 5 państw UE o największej powierzchni
+
+najwieksze %>% flextable  %>% theme_vanilla %>%  autofit
+```
+
+```{r}
+powierzchnia_5 <- sum(najwieksze$`powierzchnia (km²)`)
+```
+
+Powierzchnia 5 największych pańsw Unii Europejskiej wynosi 2 204 372 km², co stanowi 52% całkowitej poweirzchni UE (4 233 262 km²).
+
+```{r}
+dane <- dane %>% mutate(gestosc_zaludnienia=round(populacja/powierzchnia), pkb_per_capita=round((pkb*1000000000)/populacja))
+
+colnames(dane)[21] <- "gęstość zaludnienia (osób na km²)"
+colnames(dane)[22] <- "PKB per capita (euro)"
+```
+
+```{r}
+EU_zaludnienie <- read.csv("D:\\Studia\\III semestr\\Metody pozyskiwania i wizualizacji danych\\zaludnienie.csv")
+mapdata <- map_data("world")
+mapdata <- left_join(mapdata, EU_zaludnienie, by="region")
+View(mapdata)
+mapdata1<-mapdata %>% filter(!is.na(mapdata$gestosc_zaludnienia)&gestosc_zaludnienia<1600)
+```
+
+```{r}
+#| label: tbl-gestosc
+#| tbl-cap: 3 państwa o największej gęstości zaludnienia
+
+dane %>% arrange(desc(`gęstość zaludnienia (osób na km²)`))%>% head(3) %>% select(państwo, 'gęstość zaludnienia (osób na km²)') %>% flextable() %>% theme_vanilla %>% autofit()
+```
+
+Państwem o największej gęstości zaludnienia jest Malta, jednak nie została ona uwzględniona na poniższym wykresie ze względu na jego przejrzystość.
+
+```{r}
+#| label: fig-zaludnienie
+#| fig-cap: Wykres gęstości zaludnienia państw Unii Europejskiej
+
+map1<-ggplot(mapdata1, aes(x = long, y = lat, group=group)) +
+  geom_polygon(aes(fill = gestosc_zaludnienia), color = "white") +
+  theme(axis.title.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  labs(fill="gęstość zaludnienia\n (osób na km²)") +
+  theme(legend.key.height=unit(1, "cm"))
+map1 
+```
+
+# Ekonomia
+
+**Stopa inflacji** to procentowa zmiana ogólnego poziomu cen w kolejnych okresach, najczęściej liczona rok do roku.
+
+```{r}
+#| label: fig-inflacja
+#| fig-cap: Stopa inflacji dla wszystkich państw UE 
+
+ggplot(dane, aes(x=panstwo, y=stopa_inflacji)) +
+  geom_segment( aes(x=panstwo, xend=panstwo, y=0, yend=stopa_inflacji), color="skyblue") +
+  geom_point(color="dark blue", size=4, alpha=0.7) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  xlab("państwo") +
+  ylab("stopa inflacji (%)")
+```
+
+Trzema państwami UE o największej stopie inflacji (na podstawie danych z 2021 roku) są Węgry, Polska i Litwa.
+
+**Wskaźnik zagrożenia ubóstwem** (*people at risk of poverty or social exclusion*)[^1] jest to odsetek osób, które są zagrożone ubóstwem lub pogłębioną deprywacją materialną lub żyją w gospodarstwach domowych o bardzo niskiej intensywności pracy.
+
+[^1]: [Główny Urząd Statystyczny / Metainformacje / Słownik pojęć / Pojęcia stosowane w statystyce publicznej](https://stat.gov.pl/metainformacje/slownik-pojec/pojecia-stosowane-w-statystyce-publicznej/3072,pojecie.html)
+
+**Stopa bezrobocia** jest obliczana jako procent udziału bezrobotnych w ilości ludności czynnej zawodowo (dla powyższych danych - ludności w wieku od 20 do 64 lat).
+
+```{r}
+#| label: fig-bezrobocie
+#| fig-cap: Zależność między wskaźnikiem zagrożenia ubóstwem a stopą bezrobocia
+
+p <- dane %>% 
+  mutate(`stopa bezrobocia (%)`, `wskaźnik zagrożenia ubóstwem (%)`, populacja) %>%
+  mutate(państwo = factor(państwo, państwo)) %>%
+  mutate(text = paste("państwo: ", państwo, "\npopulacja: ", populacja, "\nstopa bezrobocia: ", `stopa bezrobocia (%)`, "\nwskaźnik zagrożenia ubóstwem: ", `wskaźnik zagrożenia ubóstwem (%)`, sep="")) %>%
+  ggplot(dane, mapping= aes(x=`stopa bezrobocia (%)`, 
+  y=`wskaźnik zagrożenia ubóstwem (%)`, size=populacja, color = państwo)) +
+  geom_point(alpha=0.7)+
+  scale_size(range = c(1, 20), name="populacja") +
+  xlab("stopa bezrobocia (%)") +
+  ylab("współczynnik zagrożenia ubóstwem (%)") +
+  theme_bw() +
+  theme(legend.position="none")
+
+ggplotly(p)
+```
+
+# Edukacja
+
+Sprawdzę, czy wydatki publiczne przeznaczane na edukację mają wpływ na odsetek społeczeństwa posiadający wyższe wykształcenie. Dla każdego kraju wartość tę obliczę jako średnią dwóch wielkości - odsetku kobiet i mężczyzn z wyższym wykształceniem. Dla uproszczenia obliczeń zakładam, że stosunek liczby kobiet do mężczyzn jest równy 1:1 , ponieważ kobiet w Unii Europejskiej jest niespełna 5% więcej niż mężczyzn. [@DemographyEuropeMore]
+
+```{r}
+ludnosc_z_wyzszym_wyksztalceniem=(dane$`kobiety z wyższym wykształceniem (%)`+ dane$`mężczyźni z wyższym wykształceniem (%)`)/2
+dane <- cbind(dane, ludnosc_z_wyzszym_wyksztalceniem)
+colnames(dane)[23] <- "ludność z wyższym wykształceniem (%)"
+```
+
+```{r}
+#| label: tbl-wyzsze_wyksztalcenie
+#| tbl-cap: Obliczenie odsetku populacji posiadającego wyższe wykształcenie w każdym z państw (pierwsze 3 państwa)
+
+dane %>% select(`państwo`, `kobiety z wyższym wykształceniem (%)`, `mężczyźni z wyższym wykształceniem (%)`, `ludność z wyższym wykształceniem (%)`) %>% head(3) %>% flextable %>% theme_vanilla %>% autofit
+```
+
+```{r}
+#| label: fig-wyksztalcenie
+#| fig-cap: Zależność między odsetkiem ludności posiadającym wyższe wykształcenie a wydatkami publicznymi przeznaczanymi na edukację
+
+ggplot(data=dane, mapping=aes(x=wydatki_publiczne_na_edukacje, y  =ludnosc_z_wyzszym_wyksztalceniem)) +
+  geom_point() +
+  geom_smooth()+
+  xlab("wydatki publiczne na edukację (% PKB)") +
+  ylab("odsetek ludności z wyższym wykształceniem")
+```
+
+```{r}
+korelacja <- cor(wydatki_publiczne_na_edukacje, ludnosc_z_wyzszym_wyksztalceniem, use="complete.obs", method="pearson")
+```
+
+Współczynnik korealcji liniowej Pearsona wynosi 0.39, więc jest to korelacja w stopniu umiarkowanym.[^2]
+
+[^2]: [Korelacja r-Pearsona. Statystyczna analiza związku-przykład \| Metodolog.pl - Nauka](https://nauka.metodolog.pl/korelacja-r-pearsona-w-praktyce-statystyczna-analiza-korelacjizwiazku-miedzy-zmiennymi/)
+
+# Demografia
+
+**Przewidywane lata przeżyte w zdrowiu** (*ang. Healthy Life Years, HLY*)[^3] *t*o wskaźnik obrazujący sytuację zdrowotną ludzkości. Jego wartość interpretuje się jako przewidywaną średnią liczbę lat jaką ma do przeżycia bez niepełnosprawności osoba, pod warunkiem, że aktualne warunki umieralności i utraty zdrowia populacji utrzymają się na obecnym poziomie.
+
+[^3]: [GUS: Trwanie życia w zdrowiu w 2020 r. :: MedExpress.pl](https://www.medexpress.pl/gus-trwanie-zycia-w-zdrowiu-w-2020-r/83499)
+
+```{r}
+lata_w_zdrowiu_procent_kobiety=round((dane$`przewidywane lata w zdrowiu kobiet`/dane$`przewidywana długość życia kobiet`)*100,2)
+lata_w_zdrowiu_procent_mezczyzni=round((dane$`przewidywane lata w zdrowiu mężczyzn`/dane$`przewidywana długość życia mężczyzn`)*100,2)
+
+dane <- cbind(dane, lata_w_zdrowiu_procent_kobiety, lata_w_zdrowiu_procent_mezczyzni)
+
+colnames(dane)[24] <- "życie w zdrowiu kobiet (%)"
+colnames(dane)[25] <- "życie w zdrowiu mężczyzn (%)"
+```
+
+```{r}
+#| label: tbl-zdrowie
+#| tbl-cap: Przewidywane długości życia kobiet i mężczyzn
+
+dane %>% select(państwo, `przewidywana długość życia kobiet`, `przewidywana długość życia mężczyzn`, `przewidywane lata w zdrowiu kobiet`, `przewidywane lata w zdrowiu mężczyzn`, `życie w zdrowiu kobiet (%)`, `życie w zdrowiu mężczyzn (%)`) %>% 
+  flextable() %>% 
+bg(j = c("życie w zdrowiu kobiet (%)", "życie w zdrowiu mężczyzn (%)" ) , bg = col_numeric(
+    palette = c("white", "skyblue4"),
+    domain = c(5, 20)
+    ),
+    part = "body" ) %>% 
+  fontsize(size = 12, part = "body") %>% 
+  theme_vanilla() %>%
+  autofit
+```
+
+Państwem, którego obywatele największą część swojego życia spędzają w zdrowiu jest Szewcja, natomiast państwem o najmniejszym udziale procentowym lat w zdrowiu w średniej długości życia jest Łotwa.
+
+# Środowisko
+
+Unia Europejska jest po Chinach i Stanach Zjednoczonych jest trzecim co do wielkości emitentem gazów cieplarnianaych na świecie. W 2021 całkowita emisja CO₂ na świecie wyniosła 36,3 mld ton metrycznych[^4], co oznacza 4,63 tony per capita. Wartość ta jest o 41% mniejsza od średniej emisji CO₂ per capita w Unii Europejskiej (7,9 tony).
+
+[^4]: [Global CO2 emissions from fossil fuels at new record in 2022 \| World Economic Forum (weforum.org)](https://www.weforum.org/agenda/2022/11/global-co2-emissions-fossil-fuels-hit-record-2022/)
+
+```{r}
+srednia_emisja = round(sum(dane$`całkowita emisja gazów cieplarnianych (tony CO₂)`)/ sum(dane$populacja))
+```
+
+```{r}
+dane <- dane %>% mutate(emisja_suma=round(populacja*`emisja gazów cieplarnianych (tony CO₂ per capita)`))
+colnames(dane)[26] <- "całkowita emisja gazów cieplarnianych (tony CO₂)"
+```
+
+```{r}
+#| label: tbl-emisja_gazow_cieplarnianych
+#| tbl-cap: 5 państw UE o najmniejszej emisji gazów cieplarnianych per capita
+
+dane %>% arrange(`emisja gazów cieplarnianych (tony CO₂ per capita)`)%>% head(5) %>% select(państwo, `emisja gazów cieplarnianych (tony CO₂ per capita)`,`całkowita emisja gazów cieplarnianych (tony CO₂)` ) %>% flextable() %>% theme_vanilla %>% autofit()
+```
+
+Odnawialne źródła energii stanowią alternatywę dla paliw kopalnianych i w znacznym stopniu przyczyniają się do ograniczenia emisji gazów cieplarnianych. Należą do nich energia wiatrowa, słoneczna, hydroelektryczna, geotermalna, enegia oceanów, biomasa oraz biopaliwa.
+
+```{r}
+energia_najwiecej <- dane %>% arrange(desc(`odnawialne źródła energii (% całkowitego zużycia energii)`)) %>% select(państwo, `odnawialne źródła energii (% całkowitego zużycia energii)`) %>% head(3)
+
+energia_najmniej <- dane %>% arrange(`odnawialne źródła energii (% całkowitego zużycia energii)`) %>% select(państwo, `odnawialne źródła energii (% całkowitego zużycia energii)`) %>% head(3)
+
+energia <- rbind(energia_najwiecej, energia_najmniej)
+```
+
+```{r}
+#| label: fig-odnawialne_zrodla
+#| fig-cap: Państwa o największym i najmniejszym udziale procentowym odnawialnych źródeł energii w całkowitym zużyciu energii
+
+ggplot(data=energia, aes(x=reorder(państwo, -`odnawialne źródła energii (% całkowitego zużycia energii)`), y=`odnawialne źródła energii (% całkowitego zużycia energii)`, fill = `odnawialne źródła energii (% całkowitego zużycia energii)`)) +
+  geom_bar(stat="identity") +
+  theme(legend.position="none") +
+  xlab("państwo")
+```
+
+# Statystyki podsumowujące
+
+Poniższa tabela przedstawia zestawienie statystyk podsumowujących dla wybranych wartości.
+
+```{r}
+dane %>% get_summary_stats(`stopa inflacji (%)`, `stopa bezrobocia (%)`, `ludność z wyższym wykształceniem (%)`, `użytkownicy internetu (%)`, `przewidywana długość życia kobiet`, `przewidywana długość życia mężczyzn`, `emisja gazów cieplarnianych (tony CO₂ per capita)`,
+  show=c("mean", "min", "max", "median", "sd")) %>% flextable %>% theme_vanilla %>% vline_left %>% vline_right %>%  
+  bg(bg = "powderblue", part = "header")
+```
